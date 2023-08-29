@@ -18,7 +18,7 @@ type DriftConfig = {
 	ENV: DriftEnv;
 	PYTH_ORACLE_MAPPING_ADDRESS: string;
 	DRIFT_PROGRAM_ID: string;
-	JIT_PROXY_PROGRAM_ID?: string;
+	JIT_PROXY_PROGRAM_ID: string;
 	USDC_MINT_ADDRESS: string;
 	SERUM_V3: string;
 	PHOENIX: string;
