@@ -22,3 +22,7 @@ token_faucet = "V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB"
 [[test.validator.account]]
 address = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 filename = "./deps/configs/usdc.json"
+
+[toolchain]
+anchor_version = "0.29.0"
+solana_version = "1.16.18"
