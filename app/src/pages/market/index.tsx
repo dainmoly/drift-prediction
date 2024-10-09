@@ -1,19 +1,20 @@
 import Layout from "@/components/Layout";
 import ToastLink from "@/components/ToastLink";
 import { useDriftProgram } from "@/hooks/useDriftProgram";
-import { BASE_PRECISION, CONFIRM_OPS } from "@/constants";
+import { BASE_PRECISION, CONFIRM_OPS, QUOTE_SPOT_MARKET_INDEX } from "@/constants";
 import { useGlobalStore, useMarketStore, useUserStore } from "@/stores";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { AccountMeta, ComputeBudgetProgram, PublicKey } from "@solana/web3.js";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
-import { getVariant, isVariant, PerpMarketAccount, unifyArray, decodeName, getDriftStateAccountPublicKey, getTokenMint, getUserAccountPublicKey, getUserStatsAccountPublicKey } from "@/modules";
+import { getVariant, isVariant, PerpMarketAccount, unifyArray, decodeName, getDriftStateAccountPublicKey, getTokenMint, getUserAccountPublicKey, getUserStatsAccountPublicKey, shortenPubkey, MarketStatus, getRemainAccountsForPlaceOrder, getRemainAccounts } from "@/modules";
+import { BN } from "bn.js";
 
 
 export default function Home() {
-  const { state } = useGlobalStore();
-  const { perpMarkets, spotMarkets } = useMarketStore();
+  const { state, fetchState } = useGlobalStore();
+  const { perpMarkets, spotMarkets, fetchPerpMarkets } = useMarketStore();
   const { users } = useUserStore();
 
   const { publicKey } = useWallet();
@@ -106,6 +107,208 @@ export default function Home() {
     }
   }
 
+  const handleDeletePerpMarket = async (market: PerpMarketAccount) => {
+    if (!publicKey || !program) {
+      toast.error("Check your wallet connection");
+      return;
+    }
+
+    if (!state) {
+      toast.error("You need to initialize the state account first");
+      return;
+    }
+
+    if (!market) {
+      toast.error("Market not found");
+      return;
+    }
+
+    const admin = state.admin;
+    if (admin.toBase58() != publicKey.toBase58()) {
+      toast.error(`You need to connect ${shortenPubkey(admin.toBase58())} wallet`);
+      return;
+    }
+
+    const toastId = toast.loading("Processing...");
+
+    try {
+      const statePda = getDriftStateAccountPublicKey();
+
+      let signature = await program.methods.deleteInitializedPerpMarket(
+        market.marketIndex
+      )
+        .accounts({
+          state: statePda,
+          admin: publicKey,
+          perpMarket: market.pubkey,
+        })
+        .preInstructions([
+          ComputeBudgetProgram.setComputeUnitLimit({
+            units: 100_000_000
+          }),
+        ])
+        .rpc(CONFIRM_OPS);
+
+      console.log(signature)
+
+      await Promise.all([
+        fetchPerpMarkets(),
+        fetchState()
+      ]);
+
+      toast.success(<ToastLink signature={signature} />, {
+        id: toastId
+      });
+    } catch (ex) {
+      console.log(ex);
+      toast.error((ex as Error).message, {
+        id: toastId
+      });
+    }
+  }
+
+  const handleUpdateExpiry = async (market: PerpMarketAccount) => {
+    if (!publicKey || !program) {
+      toast.error("Check your wallet connection");
+      return;
+    }
+
+    if (!state) {
+      toast.error("You need to initialize the state account first");
+      return;
+    }
+
+    if (!market) {
+      toast.error("Market not found");
+      return;
+    }
+
+    const admin = state.admin;
+    if (admin.toBase58() != publicKey.toBase58()) {
+      toast.error(`You need to connect ${shortenPubkey(admin.toBase58())} wallet`);
+      return;
+    }
+
+    const toastId = toast.loading("Processing...");
+
+    try {
+      const statePda = getDriftStateAccountPublicKey();
+
+      const remainingAccounts = getRemainAccounts(
+        [],
+        [market],
+        spotMarkets.filter(t => t.marketIndex == QUOTE_SPOT_MARKET_INDEX) ?? []
+      );
+
+      const connection = program.provider.connection;
+      const slot = await connection.getSlot();
+      const now = await connection.getBlockTime(slot);
+      if (!now) {
+        toast.error(`Failed to get blocktime`);
+        return;
+      }
+      const expiryTs = new BN(now + 3);
+      console.log(expiryTs.toNumber());
+
+      const signature = await program.methods.updatePerpMarketExpiry(
+        expiryTs,
+      ).accounts({
+        admin,
+        state: statePda,
+        perpMarket: market.pubkey
+      })
+        .preInstructions([
+          ComputeBudgetProgram.setComputeUnitLimit({
+            units: 100_000_000
+          }),
+        ])
+        .remainingAccounts(remainingAccounts)
+        .rpc(CONFIRM_OPS);
+
+      console.log(signature)
+
+      await Promise.all([
+        fetchPerpMarkets(),
+        fetchState()
+      ]);
+
+      toast.success(<ToastLink signature={signature} />, {
+        id: toastId
+      });
+    } catch (ex) {
+      console.log(ex);
+      toast.error((ex as Error).message, {
+        id: toastId
+      });
+    }
+  }
+
+  const handleResolvePerp = async (market: PerpMarketAccount) => {
+    if (!publicKey || !program) {
+      toast.error("Check your wallet connection");
+      return;
+    }
+
+    if (!state) {
+      toast.error("You need to initialize the state account first");
+      return;
+    }
+
+    if (!market) {
+      toast.error("Market not found");
+      return;
+    }
+
+    const admin = state.admin;
+    if (admin.toBase58() != publicKey.toBase58()) {
+      toast.error(`You need to connect ${shortenPubkey(admin.toBase58())} wallet`);
+      return;
+    }
+
+    const toastId = toast.loading("Processing...");
+
+    try {
+      const statePda = getDriftStateAccountPublicKey();
+
+      const remainingAccounts = getRemainAccounts(
+        [],
+        [market],
+        spotMarkets.filter(t => t.marketIndex == QUOTE_SPOT_MARKET_INDEX) ?? []
+      );
+
+      const signature = await program.methods.settleExpiredMarket(
+        market.marketIndex
+      ).accounts({
+        admin,
+        state: statePda,
+        perpMarket: market.pubkey
+      })
+        .preInstructions([
+          ComputeBudgetProgram.setComputeUnitLimit({
+            units: 100_000_000
+          }),
+        ])
+        .remainingAccounts(remainingAccounts)
+        .rpc(CONFIRM_OPS);
+
+      console.log(signature)
+
+      await Promise.all([
+        fetchPerpMarkets(),
+        fetchState()
+      ]);
+
+      toast.success(<ToastLink signature={signature} />, {
+        id: toastId
+      });
+    } catch (ex) {
+      console.log(ex);
+      toast.error((ex as Error).message, {
+        id: toastId
+      });
+    }
+  }
+
   return (
     <Layout>
       <div className="mb-8">
@@ -162,15 +365,27 @@ export default function Home() {
                 <td className="p-2">
                   {market.amm.quoteAssetAmount.toNumber()}
                 </td>
-                <td className="p-2 flex gap-3">
+                <td className="p-2 flex gap-4">
                   <button type="button" onClick={() => handleUpdatePerpOracle(market)}>
-                    Update
+                    Update Price
+                  </button>
+                  <button type="button" onClick={() => handleUpdateExpiry(market)}>
+                    Update Expiry
+                  </button>
+                  <button type="button" onClick={() => handleResolvePerp(market)}>
+                    Resolve
                   </button>
                   <Link href={`market/${market.marketIndex}/trade`}>
                     <button type="button">
                       Trade
                     </button>
                   </Link>
+                  {
+                    market.status == MarketStatus.INITIALIZED &&
+                    <button type="button" onClick={() => handleDeletePerpMarket(market)}>
+                      Delete
+                    </button>
+                  }
                 </td>
               </tr>)
             }

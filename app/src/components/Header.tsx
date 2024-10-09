@@ -22,30 +22,59 @@ export default function Header() {
           Markets
         </Link>
 
-        <Link href={'/admin'}>
-          Admin
-        </Link>
-
         <Menu>
-          <MenuButton>Tools</MenuButton>
+          <MenuButton>Admin</MenuButton>
           <MenuItems anchor="bottom start" className="flex flex-col gap-2 bg-gray-50 divide-y divide-black/20 mt-4">
             <MenuItem>
-              <Link href={'/tools/create-token'}>
-                <div className="px-2 py-1 text-black/50 hover:text-black">
-                  Create Token
+              <Link href={'/admin'}>
+                <div className="px-4 py-1.5 text-black/50 hover:text-black">
+                  Initialize
                 </div>
               </Link>
             </MenuItem>
             <MenuItem>
-              <Link href={'/tools/faucet'}>
-                <div className="px-2 py-1 text-black/50 hover:text-black">
-                  Faucet
+              <Link href={'/admin/update'}>
+                <div className="px-4 py-1.5 text-black/50 hover:text-black">
+                  Update Admin
+                </div>
+              </Link>
+            </MenuItem>
+            <MenuItem>
+              <Link href={'/admin/oracle-guard'}>
+                <div className="px-4 py-1.5 text-black/50 hover:text-black">
+                  Update Oracle Rails Guard
                 </div>
               </Link>
             </MenuItem>
           </MenuItems>
         </Menu>
 
+        <Menu>
+          <MenuButton>Tools</MenuButton>
+          <MenuItems anchor="bottom start" className="flex flex-col gap-2 bg-gray-50 divide-y divide-black/20 mt-4">
+            <MenuItem>
+              <Link href={'/tools/create-token'}>
+                <div className="px-4 py-1.5 text-black/50 hover:text-black">
+                  Create Token
+                </div>
+              </Link>
+            </MenuItem>
+            <MenuItem>
+              <Link href={'/tools/faucet'}>
+                <div className="px-4 py-1.5 text-black/50 hover:text-black">
+                  Faucet
+                </div>
+              </Link>
+            </MenuItem>
+            <MenuItem>
+              <Link href={'/tools/pk'}>
+                <div className="px-4 py-1.5 text-black/50 hover:text-black">
+                  Retrieve PK
+                </div>
+              </Link>
+            </MenuItem>
+          </MenuItems>
+        </Menu>
 
       </div>
 

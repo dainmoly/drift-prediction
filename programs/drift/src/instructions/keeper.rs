@@ -1644,7 +1644,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         "Keeper stats disable_update_perp_bid_ask_twap is true"
     )?;
 
-    let min_if_stake = 1000 * QUOTE_PRECISION_U64;
+    let min_if_stake = 0 * QUOTE_PRECISION_U64;
     validate!(
         keeper_stats.if_staked_quote_asset_amount >= min_if_stake,
         ErrorCode::CantUpdatePerpBidAskTwap,

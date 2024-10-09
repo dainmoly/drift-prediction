@@ -1,57 +1,60 @@
 import Layout from "@/components/Layout";
 import { useForm } from "react-hook-form";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useDriftProgram } from "@/hooks/useDriftProgram";
 import toast from "react-hot-toast";
-import { getDriftSignerPublicKey, getDriftStateAccountPublicKey, OracleGuardRails } from "@/modules";
-import { ComputeBudgetProgram, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getDriftStateAccountPublicKey, shortenPubkey } from "@/modules";
+import { ComputeBudgetProgram } from "@solana/web3.js";
 import ToastLink from "@/components/ToastLink";
 import { useGlobalStore } from "@/stores";
 import { CONFIRM_OPS } from "@/constants";
-import { BN } from "bn.js";
 
-type InitializeArgs = {
-  quoteMint: string;
+type UpdateAdminArgs = {
+  admin: string;
 }
 
-export default function Initialize() {
+export default function UpdateAdmin() {
   const { publicKey } = useWallet();
   const program = useDriftProgram();
 
   const { state, fetchState } = useGlobalStore();
-  console.log(state);
 
-  const { register, handleSubmit } = useForm<InitializeArgs>({
+  const { register, handleSubmit } = useForm<UpdateAdminArgs>({
     defaultValues: {
-      quoteMint: "So11111111111111111111111111111111111111112",
+      admin: state?.admin.toBase58() ?? "",
     }
   });
 
-  const onSubmit = async (data: InitializeArgs) => {
+  const onSubmit = async (data: UpdateAdminArgs) => {
     if (!publicKey || !program) {
       toast.error("Check your wallet connection");
       return;
     }
 
-    const admin = publicKey;
+    if (!state) {
+      toast.error("Initialize state");
+      return;
+    }
+
+    const admin = state.admin;
+    if (!admin.equals(publicKey)) {
+      if (admin.toBase58() != publicKey.toBase58()) {
+        toast.error(`You need to connect ${shortenPubkey(admin.toBase58())} wallet`);
+        return;
+      }
+    }
+
     const statePda = getDriftStateAccountPublicKey();
-    const signer = getDriftSignerPublicKey();
 
     const toastId = toast.loading("Processing...");
 
     try {
-      const quoteMint = new PublicKey(data.quoteMint);
-
-      const signature = await program.methods.initialize()
+      const signature = await program.methods.updateAdmin(
+        publicKey,
+      )
         .accounts({
           admin,
           state: statePda,
-          quoteAssetMint: quoteMint,
-          rent: SYSVAR_RENT_PUBKEY,
-          driftSigner: signer,
-          systemProgram: SystemProgram.programId,
-          tokenProgram: TOKEN_PROGRAM_ID,
         })
         .preInstructions([
           ComputeBudgetProgram.setComputeUnitLimit({
@@ -61,6 +64,9 @@ export default function Initialize() {
         .rpc(CONFIRM_OPS);
 
       console.log(signature);
+      await Promise.all([
+        fetchState()
+      ]);
       toast.success(<ToastLink signature={signature} />, {
         id: toastId
       });
@@ -82,22 +88,22 @@ export default function Initialize() {
         <div className="w-96 mx-auto">
 
           <h1 className="text-lg font-semibold">
-            Initialize configuration
+            Update Admin
           </h1>
 
 
           {
-            state ?
+            !state ?
               <div className="flex flex-col gap-4">
-                Already initialized
+                You need to initialize first
               </div>
               :
               <div className="w-full flex flex-col gap-6 my-4">
                 <div className="w-full flex flex-col gap-2">
-                  <label className="text-md">Quote Asset Address</label>
+                  <label className="text-md">Admin Address</label>
                   <input type="text"
                     className="form-control text-sm text-black"
-                    {...register('quoteMint', {
+                    {...register('admin', {
                       required: true
                     })} />
                 </div>
@@ -105,7 +111,7 @@ export default function Initialize() {
                 <button type="submit"
                   className="w-full rounded-md bg-gray-900 text-white p-3 disabled:opacity-50"
                   disabled={!publicKey}>
-                  Initialize
+                  Update
                 </button>
 
               </div>

@@ -4,7 +4,7 @@ export * from './perpMarkets';
 export * from './numericConstants';
 export * from './spotMarkets';
 
-export const DRIFT_PROGRAM_ID = new PublicKey("BMVvujZpwvTKyg3VDfDm2Wjg6HvCFWcJ9Z7n6eAUB7be");
+export const DRIFT_PROGRAM_ID = new PublicKey("DhQffgXZLpzD16wZZSuS35FrcpPxWwPBm86Lrgv4a9hU");
 export const DRIFT_ORACLE_RECEIVER_ID = new PublicKey("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha");
 export const PYTH_PROGRAM_ID = new PublicKey("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
 export const SWITCHBOARD_PROGRAM_ID = new PublicKey("SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f");
@@ -20,6 +20,6 @@ export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://api.devnet.so
 export const CONFIRM_OPS: ConfirmOptions = {
     maxRetries: 0,
     commitment: 'confirmed',
-    skipPreflight: true,
+    skipPreflight: false,
     preflightCommitment: 'confirmed'
 };

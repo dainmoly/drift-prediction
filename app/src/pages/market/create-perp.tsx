@@ -4,23 +4,26 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useDriftProgram } from "@/hooks/useDriftProgram";
 import toast from "react-hot-toast";
 import { ComputeBudgetProgram, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
-import ToastLink from "@/components/ToastLink";
 import BN from "bn.js";
-import { ContractTier, OracleSource } from "@/modules/types";
+import { format, formatDate } from "date-fns";
+
+import { ContractTier, MarketStatus, OracleSource } from "@/modules/types";
 import { BASE_PRECISION, BID_ASK_SPREAD_PRECISION, CONFIRM_OPS, ONE, PEG_PRECISION, PerpMarkets, PRICE_PRECISION, QUOTE_PRECISION, ZERO } from "@/constants";
 import { getDriftStateAccountPublicKey, getPerpMarketPublicKey, getPrelaunchOraclePublicKey, encodeName, shortenPubkey } from "@/modules";
 import { useGlobalStore, useMarketStore } from "@/stores";
+import ToastLink from "@/components/ToastLink";
 
 type CreateMarketArgs = {
   name: string;
   baseAssetReserve: number;
   quoteAssetReserve: number;
   periodicity: number;
+  expiryTs: string;
 }
 
 export default function CreateMarket() {
 
-  const { state } = useGlobalStore();
+  const { state, fetchState } = useGlobalStore();
   const { fetchPerpMarkets } = useMarketStore();
 
   const { publicKey } = useWallet();
@@ -32,6 +35,7 @@ export default function CreateMarket() {
       baseAssetReserve: 1000,
       quoteAssetReserve: 1000,
       periodicity: 300, // 5min
+      expiryTs: "",
     }
   });
 
@@ -73,7 +77,7 @@ export default function CreateMarket() {
     const liquidatorFee = 0;
     const ifLiquidatorFee = 10000;
     const imfFactor = 0;
-    const activeStatus = true;
+    const activeStatus = false;
     const baseSpread = 100000;
     const maxSpread = 200000;
     const maxOpenInterest = ZERO;
@@ -113,6 +117,32 @@ export default function CreateMarket() {
           state: statePda,
           perpMarket: perpMarketPublicKey
         }).instruction();
+
+      const initPredictionIx = await program.methods.initializePredictionMarket()
+        .accounts({
+          state: statePda,
+          admin,
+          perpMarket: perpMarketPublicKey,
+        })
+        .instruction();
+
+      const activatePerpIx = await program.methods.updatePerpMarketStatus(
+        MarketStatus.ACTIVE
+      ).accounts({
+        admin,
+        state: statePda,
+        perpMarket: perpMarketPublicKey
+      }).instruction();
+
+      // console.log(data.expiryTs)
+      // const expiryTs = new BN(Math.floor(new Date(data.expiryTs).getTime() / 1000));
+      // const expiryMarketIx = await program.methods.updatePerpMarketExpiry(
+      //   expiryTs
+      // ).accounts({
+      //   admin,
+      //   state: statePda,
+      //   perpMarket: perpMarketPublicKey
+      // }).instruction();
 
       const signature = await program.methods.initializePerpMarket(
         marketIndex,
@@ -157,12 +187,17 @@ export default function CreateMarket() {
         ])
         .postInstructions([
           // updateOracleIx,
+          initPredictionIx,
+          activatePerpIx,
+          expiryMarketIx,
         ])
         .rpc(CONFIRM_OPS);
 
       console.log(signature);
-
-      await fetchPerpMarkets();
+      await Promise.all([
+        fetchPerpMarkets(),
+        fetchState()
+      ]);
       toast.success(<ToastLink signature={signature} />, {
         id: toastId
       });
@@ -223,6 +258,15 @@ export default function CreateMarket() {
                 {...register('periodicity', {
                   required: true,
                   valueAsNumber: true
+                })} />
+            </div>
+
+            <div className="w-full flex flex-col gap-2">
+              <label className="text-md">Expiry Date</label>
+              <input type="datetime-local"
+                className="form-control text-sm text-black"
+                {...register('expiryTs', {
+                  required: true,
                 })} />
             </div>
 

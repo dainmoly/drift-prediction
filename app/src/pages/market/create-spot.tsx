@@ -23,7 +23,7 @@ type CreateMarketArgs = {
 }
 
 export default function CreateMarket() {
-  const { state } = useGlobalStore();
+  const { state, fetchState } = useGlobalStore();
   const { fetchSpotMarkets } = useMarketStore();
 
   const { publicKey } = useWallet();
@@ -171,7 +171,10 @@ export default function CreateMarket() {
         ])
         .rpc(CONFIRM_OPS);
 
-      await fetchSpotMarkets();
+      await Promise.all([
+        fetchSpotMarkets(),
+        fetchState()
+      ]);
 
       console.log(signature);
       toast.success(<ToastLink signature={signature} />, {

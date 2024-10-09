@@ -9,7 +9,7 @@ import { useRouter } from "next/router";
 import { useDriftProgram } from "@/hooks/useDriftProgram";
 import Layout from "@/components/Layout";
 import ToastLink from "@/components/ToastLink";
-import { BASE_PRECISION, CONFIRM_OPS, PRICE_PRECISION, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX } from "@/constants";
+import { BASE_PRECISION, CONFIRM_OPS, PRICE_PRECISION, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, ZERO } from "@/constants";
 import { useGlobalStore, useMarketStore, useUserStore } from "@/stores";
 import { getOracleClient } from "@/modules/oracles/oracleClient";
 import { shortenPubkey, unifyArray, decodeName, getDriftStateAccountPublicKey, getOrderParams, getPerpMarketPublicKey, getSpotMarketPublicKey, getSpotMarketVaultPublicKey, getUserAccountPublicKey, getUserStatsAccountPublicKey, isVariant, OptionalOrderParams, Order, OrderType, PositionDirection, getMarketOrderParams, getLimitOrderParams, PerpPosition, getRemainAccountsForPlaceOrder } from "@/modules";
@@ -100,6 +100,7 @@ export default function Trade() {
       for (const user of users) {
         for (const t of user.perpPositions) {
           if (t.marketIndex == market.marketIndex && !t.baseAssetAmount.isZero()) {
+            console.log(t)
             positions.push({
               ...t,
               authority: user.authority,
@@ -146,7 +147,6 @@ export default function Trade() {
     amount: number,
     reduceOnly: boolean,
   ) => {
-
     if (!publicKey || !program) {
       toast.error("Check your wallet connection");
       return;
@@ -209,6 +209,7 @@ export default function Trade() {
           .rpc(CONFIRM_OPS);
       }
       else {
+        program.methods.cancelOrder
         signature = await program.methods.placeAndTakePerpOrder(
           orderParams as any,
           null
@@ -634,10 +635,10 @@ export default function Trade() {
                       #
                     </th>
                     <th className="text-left p-2">
-                      Base Amount
+                      Position
                     </th>
                     <th className="text-left p-2">
-                      Quote Amount
+                      Size
                     </th>
                     <th className="text-left p-2">
                       User
@@ -655,10 +656,10 @@ export default function Trade() {
                         {idx}
                       </td>
                       <td className="p-2">
-                        {position.baseAssetAmount.div(BASE_PRECISION).toNumber()}
+                        {position.baseAssetAmount.gte(ZERO) ? 'Yes' : 'No'}
                       </td>
                       <td className="p-2">
-                        {position.quoteAssetAmount.div(QUOTE_PRECISION).toNumber()}
+                        {position.baseAssetAmount.div(BASE_PRECISION).abs().toNumber()}
                       </td>
                       <td className="p-2">
                         {shortenPubkey(position.authority?.toBase58() ?? "-")}
@@ -667,7 +668,7 @@ export default function Trade() {
                         {
                           publicKey && position.authority?.equals(publicKey) &&
                           <button type="button"
-                            onClick={() => handlePlaceOrder('market', position.)}>
+                            onClick={() => handlePlaceOrder('market', position.baseAssetAmount.gt(ZERO) ? 'short' : 'long', 0, position.baseAssetAmount.div(BASE_PRECISION).abs().toNumber(), true)}>
                             Cancel
                           </button>
                         }
