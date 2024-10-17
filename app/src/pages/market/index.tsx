@@ -54,7 +54,6 @@ export default function Home() {
 
       let remainingAccounts: AccountMeta[] = [];
       userPubkeys = unifyArray(userPubkeys);
-      console.log(userPubkeys);
       for (const user of userPubkeys) {
         remainingAccounts.push({
           pubkey: getUserAccountPublicKey(new PublicKey(user)),
@@ -191,8 +190,30 @@ export default function Home() {
 
     const toastId = toast.loading("Processing...");
 
+    const price = new BN(1);
+    const maxPrice = new BN(2);
+
     try {
       const statePda = getDriftStateAccountPublicKey();
+
+      const updateOracleIx = await program.methods.updatePrelaunchOracleParams({
+        perpMarketIndex: market.marketIndex,
+        price,
+        maxPrice,
+      }).accounts({
+        admin,
+        state: statePda,
+        perpMarket: market.pubkey,
+        prelaunchOracle: market.amm.oracle,
+      }).instruction();
+
+      const updateTwapIx = await program.methods.updatePerpMarketAmmOracleTwap()
+        .accounts({
+          admin,
+          state: statePda,
+          perpMarket: market.pubkey,
+          oracle: market.amm.oracle,
+        }).instruction();
 
       const remainingAccounts = getRemainAccounts(
         [],
@@ -200,18 +221,9 @@ export default function Home() {
         spotMarkets.filter(t => t.marketIndex == QUOTE_SPOT_MARKET_INDEX) ?? []
       );
 
-      const connection = program.provider.connection;
-      const slot = await connection.getSlot();
-      const now = await connection.getBlockTime(slot);
-      if (!now) {
-        toast.error(`Failed to get blocktime`);
-        return;
-      }
-      const expiryTs = new BN(now + 3);
-      console.log(expiryTs.toNumber());
-
+      const expiryTs = new BN(Math.floor(new Date().getTime() / 1000) + 30);
       const signature = await program.methods.updatePerpMarketExpiry(
-        expiryTs,
+        expiryTs
       ).accounts({
         admin,
         state: statePda,
@@ -221,6 +233,8 @@ export default function Home() {
           ComputeBudgetProgram.setComputeUnitLimit({
             units: 100_000_000
           }),
+          updateOracleIx,
+          updateTwapIx,
         ])
         .remainingAccounts(remainingAccounts)
         .rpc(CONFIRM_OPS);
@@ -267,8 +281,30 @@ export default function Home() {
 
     const toastId = toast.loading("Processing...");
 
+    const price = new BN(1);
+    const maxPrice = new BN(2);
+
     try {
       const statePda = getDriftStateAccountPublicKey();
+
+      const updateOracleIx = await program.methods.updatePrelaunchOracleParams({
+        perpMarketIndex: market.marketIndex,
+        price,
+        maxPrice,
+      }).accounts({
+        admin,
+        state: statePda,
+        perpMarket: market.pubkey,
+        prelaunchOracle: market.amm.oracle,
+      }).instruction();
+
+      const updateTwapIx = await program.methods.updatePerpMarketAmmOracleTwap()
+        .accounts({
+          admin,
+          state: statePda,
+          perpMarket: market.pubkey,
+          oracle: market.amm.oracle,
+        }).instruction();
 
       const remainingAccounts = getRemainAccounts(
         [],
@@ -287,6 +323,8 @@ export default function Home() {
           ComputeBudgetProgram.setComputeUnitLimit({
             units: 100_000_000
           }),
+          updateOracleIx,
+          updateTwapIx,
         ])
         .remainingAccounts(remainingAccounts)
         .rpc(CONFIRM_OPS);

@@ -340,8 +340,6 @@ export default function Manage() {
     }
     perpIdxs = unifyArray(perpIdxs);
 
-    console.log(user, perpIdxs)
-
     // Oracles
     for (const idx of spotIdxs) {
       const market = spotMarkets.find(t => t.marketIndex == idx);

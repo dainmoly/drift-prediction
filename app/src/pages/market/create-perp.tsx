@@ -5,7 +5,6 @@ import { useDriftProgram } from "@/hooks/useDriftProgram";
 import toast from "react-hot-toast";
 import { ComputeBudgetProgram, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import BN from "bn.js";
-import { format, formatDate } from "date-fns";
 
 import { ContractTier, MarketStatus, OracleSource } from "@/modules/types";
 import { BASE_PRECISION, BID_ASK_SPREAD_PRECISION, CONFIRM_OPS, ONE, PEG_PRECISION, PerpMarkets, PRICE_PRECISION, QUOTE_PRECISION, ZERO } from "@/constants";
@@ -32,9 +31,9 @@ export default function CreateMarket() {
   const { register, handleSubmit } = useForm<CreateMarketArgs>({
     defaultValues: {
       name: "Market",
-      baseAssetReserve: 1000,
-      quoteAssetReserve: 1000,
-      periodicity: 300, // 5min
+      baseAssetReserve: 10000,
+      quoteAssetReserve: 10000,
+      periodicity: 300, // 5 mins
       expiryTs: "",
     }
   });
@@ -70,25 +69,25 @@ export default function CreateMarket() {
     const quoteAssetReserve = new BN(data.quoteAssetReserve).mul(BASE_PRECISION);
     const periodicity = new BN(data.periodicity);
     // Default values for create market
-    const pegMultiplier: BN = PEG_PRECISION;
-    const contractTier = ContractTier.SPECULATIVE;
+    const pegMultiplier: BN = new BN(585000);
+    const contractTier = ContractTier.HIGHLY_SPECULATIVE;
     const marginRatioInitial = 10000;
     const marginRatioMaintenance = 9995;
-    const liquidatorFee = 0;
-    const ifLiquidatorFee = 10000;
-    const imfFactor = 0;
+    const liquidatorFee = 25000;
+    const ifLiquidatorFee = 25000;
+    const imfFactor = 1;
     const activeStatus = false;
     const baseSpread = 100000;
     const maxSpread = 200000;
-    const maxOpenInterest = ZERO;
-    const maxRevenueWithdrawPerPeriod = ZERO;
-    const quoteMaxInsurance = ZERO;
-    const orderStepSize = BASE_PRECISION;
-    const orderTickSize = new BN(1_000);
-    const minOrderSize = BASE_PRECISION;
-    const concentrationCoefScale = ONE;
-    const curveUpdateIntensity = 0;
-    const ammJitIntensity = 0;
+    const maxOpenInterest = BASE_PRECISION.muln(1000000);
+    const maxRevenueWithdrawPerPeriod = new BN(0);
+    const quoteMaxInsurance = BASE_PRECISION.muln(0);
+    const orderStepSize = BASE_PRECISION.muln(1);
+    const orderTickSize = new BN(1000);
+    const minOrderSize = BASE_PRECISION.muln(1);
+    const concentrationCoefScale = new BN(1);
+    const curveUpdateIntensity = 100;
+    const ammJitIntensity = 100;
     const nameBuffer = encodeName(data.name);
 
     const toastId = toast.loading("Processing...");
@@ -109,16 +108,15 @@ export default function CreateMarket() {
           systemProgram: SystemProgram.programId,
         }).instruction();
 
-      const updateOracleIx = await program.methods.updatePerpMarketBaseSpread(
-        BID_ASK_SPREAD_PRECISION.divn(50).toNumber(),
-      )
-        .accounts({
-          admin,
-          state: statePda,
-          perpMarket: perpMarketPublicKey
-        }).instruction();
-
       const initPredictionIx = await program.methods.initializePredictionMarket()
+        .accounts({
+          state: statePda,
+          admin,
+          perpMarket: perpMarketPublicKey,
+        })
+        .instruction();
+
+      const updateOperationIx = await program.methods.updatePerpMarketPausedOperations(3)
         .accounts({
           state: statePda,
           admin,
@@ -133,16 +131,6 @@ export default function CreateMarket() {
         state: statePda,
         perpMarket: perpMarketPublicKey
       }).instruction();
-
-      // console.log(data.expiryTs)
-      // const expiryTs = new BN(Math.floor(new Date(data.expiryTs).getTime() / 1000));
-      // const expiryMarketIx = await program.methods.updatePerpMarketExpiry(
-      //   expiryTs
-      // ).accounts({
-      //   admin,
-      //   state: statePda,
-      //   perpMarket: perpMarketPublicKey
-      // }).instruction();
 
       const signature = await program.methods.initializePerpMarket(
         marketIndex,
@@ -186,10 +174,9 @@ export default function CreateMarket() {
           initOracleIx,
         ])
         .postInstructions([
-          // updateOracleIx,
           initPredictionIx,
+          updateOperationIx,
           activatePerpIx,
-          expiryMarketIx,
         ])
         .rpc(CONFIRM_OPS);
 
@@ -258,15 +245,6 @@ export default function CreateMarket() {
                 {...register('periodicity', {
                   required: true,
                   valueAsNumber: true
-                })} />
-            </div>
-
-            <div className="w-full flex flex-col gap-2">
-              <label className="text-md">Expiry Date</label>
-              <input type="datetime-local"
-                className="form-control text-sm text-black"
-                {...register('expiryTs', {
-                  required: true,
                 })} />
             </div>
 

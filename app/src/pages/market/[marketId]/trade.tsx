@@ -100,7 +100,6 @@ export default function Trade() {
       for (const user of users) {
         for (const t of user.perpPositions) {
           if (t.marketIndex == market.marketIndex && !t.baseAssetAmount.isZero()) {
-            console.log(t)
             positions.push({
               ...t,
               authority: user.authority,
@@ -292,7 +291,6 @@ export default function Trade() {
 
       perpIdxs = unifyArray(perpIdxs);
       spotIdxs = unifyArray(spotIdxs);
-      console.log(perpIdxs, spotIdxs);
 
       // Oracle
       for (const idx of perpIdxs) {

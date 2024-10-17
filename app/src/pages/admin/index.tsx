@@ -20,7 +20,6 @@ export default function Initialize() {
   const program = useDriftProgram();
 
   const { state, fetchState } = useGlobalStore();
-  console.log(state);
 
   const { register, handleSubmit } = useForm<InitializeArgs>({
     defaultValues: {

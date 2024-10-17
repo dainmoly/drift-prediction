@@ -2,6 +2,10 @@
 /programs/drift/src/instructions/keeper.rs:handle_update_perp_bid_ask_twap
 Update min_if_stake variable as 0
 
+# Contract modifications
+ - Add resolve_ts and oracle address to perpMarketState
+ - Add resolve_ts to init_prediction ix
+
 # Potential bugs
  - Delete initialized prediction market works, but after that, create market not worked because number_of_markets reduced.
 
@@ -15,7 +19,7 @@ Update min_if_stake variable as 0
  `solana program deploy target/deploy/drift.so -u d`
  - If deploy to mainnet, then build without feature flag, and -u as m.
  - Upload IDL to verify
- `anchor idl init -f target/idl/drift.json DhQffgXZLpzD16wZZSuS35FrcpPxWwPBm86Lrgv4a9hU --provider.cluster devnet`
+ `anchor idl init -f target/idl/drift.json 4rkrHwxutN8jGCAawSVzB7Xga2CLFimrfmyevEpB6Tfq --provider.cluster devnet`
 
 
 # Initialize state account

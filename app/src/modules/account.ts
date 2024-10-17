@@ -33,7 +33,6 @@ export const getRemainAccountsForPlaceOrder = (
       perpIdxs.push(position.marketIndex);
     }
   }
-  console.log(orderer)
 
   const orders = users.map(u => u.orders.
     filter(o => isVariant(o.marketType, "perp") && o.marketIndex == market.marketIndex && isVariant(o.status, "open"))
@@ -43,10 +42,8 @@ export const getRemainAccountsForPlaceOrder = (
         authority: u.authority
       }
     })).flat();
-  console.log(orders);
   for (const order of orders) {
     const makerPubkey = order.authority ?? PublicKey.default;
-    console.log(makerPubkey.toBase58())
     const maker = users.find(t => t.authority.equals(makerPubkey));
     if (maker) {
       makerPubkeys.push(makerPubkey.toBase58());
@@ -67,7 +64,6 @@ export const getRemainAccountsForPlaceOrder = (
   perpIdxs = unifyArray(perpIdxs);
   spotIdxs = unifyArray(spotIdxs);
   makerPubkeys = unifyArray(makerPubkeys);
-  console.log(perpIdxs, spotIdxs, makerPubkeys);
 
   // Oracle
   for (const idx of perpIdxs) {
