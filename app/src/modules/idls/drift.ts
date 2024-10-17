@@ -1,5 +1,5 @@
 export type Drift = {
-  "version": "2.95.0",
+  "version": "2.96.0",
   "name": "drift",
   "instructions": [
     {
@@ -644,11 +644,15 @@ export type Drift = {
       ],
       "args": [
         {
-          "name": "takerOrderParamsMessageBytes",
+          "name": "swiftMessageBytes",
           "type": "bytes"
         },
         {
-          "name": "signature",
+          "name": "swiftOrderParamsMessageBytes",
+          "type": "bytes"
+        },
+        {
+          "name": "swiftMessageSignature",
           "type": {
             "array": [
               "u8",
@@ -1280,6 +1284,37 @@ export type Drift = {
       "args": []
     },
     {
+      "name": "enableUserHighLeverageMode",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "fillPerpOrder",
       "accounts": [
         {
@@ -1488,6 +1523,58 @@ export type Drift = {
         },
         {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "disableUserHighLeverageMode",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateUserFuelBonus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -3496,9 +3583,19 @@ export type Drift = {
           "name": "perpMarket",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "resolveTs",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "deleteInitializedPerpMarket",
@@ -3954,6 +4051,36 @@ export type Drift = {
         {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketHighLeverageMarginRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marginRatioInitial",
+          "type": "u16"
+        },
+        {
+          "name": "marginRatioMaintenance",
+          "type": "u16"
         }
       ]
     },
@@ -5922,6 +6049,72 @@ export type Drift = {
           }
         }
       ]
+    },
+    {
+      "name": "initializeHighLeverageModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateHighLeverageModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -6122,6 +6315,35 @@ export type Drift = {
               "array": [
                 "u8",
                 4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "highLeverageModeConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxUsers",
+            "type": "u32"
+          },
+          {
+            "name": "currentUsers",
+            "type": "u32"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                31
               ]
             }
           }
@@ -6517,13 +6739,27 @@ export type Drift = {
             "type": "u8"
           },
           {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                43
-              ]
-            }
+            "name": "padding1",
+            "type": "u8"
+          },
+          {
+            "name": "highLeverageMarginRatioInitial",
+            "type": "u16"
+          },
+          {
+            "name": "highLeverageMarginRatioMaintenance",
+            "type": "u16"
+          },
+          {
+            "name": "resolveTs",
+            "docs": [
+              "prediction resolve timestamp"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "resolveOracle",
+            "type": "publicKey"
           }
         ]
       }
@@ -7372,11 +7608,17 @@ export type Drift = {
             "type": "bool"
           },
           {
+            "name": "marginMode",
+            "type": {
+              "defined": "MarginMode"
+            }
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                5
+                4
               ]
             }
           },
@@ -8101,6 +8343,27 @@ export type Drift = {
       }
     },
     {
+      "name": "SwiftServerMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderSignature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwiftOrderParamsMessage",
       "type": {
         "kind": "struct",
@@ -8108,19 +8371,7 @@ export type Drift = {
           {
             "name": "swiftOrderParams",
             "type": {
-              "vec": {
-                "defined": "OrderParams"
-              }
-            }
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "marketType",
-            "type": {
-              "defined": "MarketType"
+              "defined": "OrderParams"
             }
           },
           {
@@ -8128,7 +8379,39 @@ export type Drift = {
             "type": "i32"
           },
           {
-            "name": "slot",
+            "name": "subAccountId",
+            "type": "u16"
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftTriggerOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "triggerPrice",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
             "type": "u64"
           }
         ]
@@ -10585,6 +10868,20 @@ export type Drift = {
           },
           {
             "name": "Perp"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarginMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Default"
+          },
+          {
+            "name": "HighLeverage"
           }
         ]
       }
@@ -13065,7 +13362,7 @@ export type Drift = {
     {
       "code": 6286,
       "name": "SigVerificationFailed",
-      "msg": "Swift taker message verificaiton failed"
+      "msg": "Swift message verificaiton failed"
     },
     {
       "code": 6287,
@@ -13074,19 +13371,24 @@ export type Drift = {
     },
     {
       "code": 6288,
-      "name": "SwiftOrderSequenceError",
-      "msg": "Swift order message must be ordered 0th order is market and rest are triggers"
+      "name": "InvalidSwiftOrderParam",
+      "msg": "Swift only available for market/oracle perp orders"
     },
     {
       "code": 6289,
       "name": "PlaceAndTakeOrderSuccessConditionFailed",
       "msg": "Place and take order success condition failed"
+    },
+    {
+      "code": 6290,
+      "name": "InvalidHighLeverageModeConfig",
+      "msg": "Invalid High Leverage Mode Config"
     }
   ]
 };
 
 export const IDL: Drift = {
-  "version": "2.95.0",
+  "version": "2.96.0",
   "name": "drift",
   "instructions": [
     {
@@ -13731,11 +14033,15 @@ export const IDL: Drift = {
       ],
       "args": [
         {
-          "name": "takerOrderParamsMessageBytes",
+          "name": "swiftMessageBytes",
           "type": "bytes"
         },
         {
-          "name": "signature",
+          "name": "swiftOrderParamsMessageBytes",
+          "type": "bytes"
+        },
+        {
+          "name": "swiftMessageSignature",
           "type": {
             "array": [
               "u8",
@@ -14367,6 +14673,37 @@ export const IDL: Drift = {
       "args": []
     },
     {
+      "name": "enableUserHighLeverageMode",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "fillPerpOrder",
       "accounts": [
         {
@@ -14575,6 +14912,58 @@ export const IDL: Drift = {
         },
         {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "disableUserHighLeverageMode",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateUserFuelBonus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -16583,9 +16972,19 @@ export const IDL: Drift = {
           "name": "perpMarket",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "resolveTs",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "deleteInitializedPerpMarket",
@@ -17041,6 +17440,36 @@ export const IDL: Drift = {
         {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketHighLeverageMarginRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marginRatioInitial",
+          "type": "u16"
+        },
+        {
+          "name": "marginRatioMaintenance",
+          "type": "u16"
         }
       ]
     },
@@ -19009,6 +19438,72 @@ export const IDL: Drift = {
           }
         }
       ]
+    },
+    {
+      "name": "initializeHighLeverageModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateHighLeverageModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -19209,6 +19704,35 @@ export const IDL: Drift = {
               "array": [
                 "u8",
                 4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "highLeverageModeConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxUsers",
+            "type": "u32"
+          },
+          {
+            "name": "currentUsers",
+            "type": "u32"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                31
               ]
             }
           }
@@ -19604,13 +20128,27 @@ export const IDL: Drift = {
             "type": "u8"
           },
           {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                43
-              ]
-            }
+            "name": "padding1",
+            "type": "u8"
+          },
+          {
+            "name": "highLeverageMarginRatioInitial",
+            "type": "u16"
+          },
+          {
+            "name": "highLeverageMarginRatioMaintenance",
+            "type": "u16"
+          },
+          {
+            "name": "resolveTs",
+            "docs": [
+              "prediction resolve timestamp"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "resolveOracle",
+            "type": "publicKey"
           }
         ]
       }
@@ -20459,11 +20997,17 @@ export const IDL: Drift = {
             "type": "bool"
           },
           {
+            "name": "marginMode",
+            "type": {
+              "defined": "MarginMode"
+            }
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                5
+                4
               ]
             }
           },
@@ -21188,6 +21732,27 @@ export const IDL: Drift = {
       }
     },
     {
+      "name": "SwiftServerMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderSignature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwiftOrderParamsMessage",
       "type": {
         "kind": "struct",
@@ -21195,19 +21760,7 @@ export const IDL: Drift = {
           {
             "name": "swiftOrderParams",
             "type": {
-              "vec": {
-                "defined": "OrderParams"
-              }
-            }
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "marketType",
-            "type": {
-              "defined": "MarketType"
+              "defined": "OrderParams"
             }
           },
           {
@@ -21215,7 +21768,39 @@ export const IDL: Drift = {
             "type": "i32"
           },
           {
-            "name": "slot",
+            "name": "subAccountId",
+            "type": "u16"
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftTriggerOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "triggerPrice",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
             "type": "u64"
           }
         ]
@@ -23672,6 +24257,20 @@ export const IDL: Drift = {
           },
           {
             "name": "Perp"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarginMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Default"
+          },
+          {
+            "name": "HighLeverage"
           }
         ]
       }
@@ -26152,7 +26751,7 @@ export const IDL: Drift = {
     {
       "code": 6286,
       "name": "SigVerificationFailed",
-      "msg": "Swift taker message verificaiton failed"
+      "msg": "Swift message verificaiton failed"
     },
     {
       "code": 6287,
@@ -26161,13 +26760,18 @@ export const IDL: Drift = {
     },
     {
       "code": 6288,
-      "name": "SwiftOrderSequenceError",
-      "msg": "Swift order message must be ordered 0th order is market and rest are triggers"
+      "name": "InvalidSwiftOrderParam",
+      "msg": "Swift only available for market/oracle perp orders"
     },
     {
       "code": 6289,
       "name": "PlaceAndTakeOrderSuccessConditionFailed",
       "msg": "Place and take order success condition failed"
+    },
+    {
+      "code": 6290,
+      "name": "InvalidHighLeverageModeConfig",
+      "msg": "Invalid High Leverage Mode Config"
     }
   ]
 };

@@ -17,7 +17,8 @@ type CreateMarketArgs = {
   baseAssetReserve: number;
   quoteAssetReserve: number;
   periodicity: number;
-  expiryTs: string;
+  resolveTs: Date;
+  resolveOracle: string;
 }
 
 export default function CreateMarket() {
@@ -34,7 +35,6 @@ export default function CreateMarket() {
       baseAssetReserve: 10000,
       quoteAssetReserve: 10000,
       periodicity: 300, // 5 mins
-      expiryTs: "",
     }
   });
 
@@ -90,6 +90,9 @@ export default function CreateMarket() {
     const ammJitIntensity = 100;
     const nameBuffer = encodeName(data.name);
 
+    const resolveOracle = new PublicKey(data.resolveOracle);
+    const resolveTs = new BN(Math.floor(data.resolveTs.getTime() / 1000));
+
     const toastId = toast.loading("Processing...");
 
     try {
@@ -108,11 +111,14 @@ export default function CreateMarket() {
           systemProgram: SystemProgram.programId,
         }).instruction();
 
-      const initPredictionIx = await program.methods.initializePredictionMarket()
+      const initPredictionIx = await program.methods.initializePredictionMarket(
+        resolveTs
+      )
         .accounts({
           state: statePda,
           admin,
           perpMarket: perpMarketPublicKey,
+          oracle: resolveOracle,
         })
         .instruction();
 
@@ -204,7 +210,7 @@ export default function CreateMarket() {
         <div className="w-96 mx-auto">
 
           <h1 className="text-lg font-semibold">
-            Create Perp Market
+            Create Prediction Market
           </h1>
 
           <div className="w-full flex flex-col gap-6 my-4">
@@ -245,6 +251,25 @@ export default function CreateMarket() {
                 {...register('periodicity', {
                   required: true,
                   valueAsNumber: true
+                })} />
+            </div>
+
+            <div className="w-full flex flex-col gap-2">
+              <label className="text-md">Resolve Date</label>
+              <input type="datetime-local"
+                className="form-control text-sm text-black"
+                {...register('resolveTs', {
+                  required: true,
+                  valueAsDate: true,
+                })} />
+            </div>
+
+            <div className="w-full flex flex-col gap-2">
+              <label className="text-md">Resolve Oracle (Switchboard On-demand)</label>
+              <input type="text"
+                className="form-control text-sm text-black"
+                {...register('resolveOracle', {
+                  required: true,
                 })} />
             </div>
 

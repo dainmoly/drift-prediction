@@ -13,7 +13,7 @@ use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
-use crate::ids::admin_hot_wallet;
+use crate::ids::{admin_hot_wallet, switchboard_on_demand};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -861,7 +861,10 @@ pub fn handle_initialize_perp_market(
         padding1: 0,
         high_leverage_margin_ratio_initial: 0,
         high_leverage_margin_ratio_maintenance: 0,
-        padding: [0; 38],
+
+        resolve_ts: 0,
+        resolve_oracle: Pubkey::default(),
+
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -970,9 +973,16 @@ pub fn handle_initialize_perp_market(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_initialize_prediction_market(ctx: Context<AdminUpdatePerpMarket>) -> Result<()> {
+pub fn handle_initialize_prediction_market(
+    ctx: Context<InitializePredictionMarket>,
+    resolve_ts: u64,
+) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("updating perp market {} expiry", perp_market.market_index);
+    msg!(
+        "initialize prediction market {} with resolve_ts {}",
+        perp_market.market_index,
+        resolve_ts
+    );
 
     validate!(
         perp_market.status == MarketStatus::Initialized,
@@ -980,7 +990,15 @@ pub fn handle_initialize_prediction_market(ctx: Context<AdminUpdatePerpMarket>) 
         "Market must be just initialized to make prediction market"
     )?;
 
+    validate!(
+        ctx.accounts.oracle.owner == &switchboard_on_demand::id(),
+        ErrorCode::DefaultError,
+        "Oracle should be address of switchboard on-demand"
+    )?;
+
     perp_market.contract_type = ContractType::Prediction;
+    perp_market.resolve_ts = resolve_ts;
+    perp_market.resolve_oracle = ctx.accounts.oracle.key();
 
     let paused_operations = perp_market.paused_operations | PerpOperation::UpdateFunding as u8;
 
@@ -4440,6 +4458,20 @@ pub struct AdminUpdatePerpMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
+pub struct InitializePredictionMarket<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+
+    /// CHECK: swithboard_on_demand address for resolve
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

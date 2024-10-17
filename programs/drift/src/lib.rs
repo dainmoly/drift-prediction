@@ -36,7 +36,7 @@ mod validation;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("4rkrHwxutN8jGCAawSVzB7Xga2CLFimrfmyevEpB6Tfq");
+declare_id!("9u2HBKPQtouLjmepiaema1LF99Ah7YyViJ8kLe8D236w");
 
 #[program]
 pub mod drift {
@@ -815,9 +815,10 @@ pub mod drift {
     }
 
     pub fn initialize_prediction_market<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, InitializePredictionMarket<'info>>,
+        resolve_ts: u64,
     ) -> Result<()> {
-        handle_initialize_prediction_market(ctx)
+        handle_initialize_prediction_market(ctx, resolve_ts)
     }
 
     pub fn delete_initialized_perp_market(

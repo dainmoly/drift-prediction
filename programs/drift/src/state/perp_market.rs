@@ -236,7 +236,10 @@ pub struct PerpMarket {
     pub padding1: u8,
     pub high_leverage_margin_ratio_initial: u16,
     pub high_leverage_margin_ratio_maintenance: u16,
-    pub padding: [u8; 38],
+
+    /// prediction resolve timestamp
+    pub resolve_ts: u64,
+    pub resolve_oracle: Pubkey,
 }
 
 impl Default for PerpMarket {
@@ -276,13 +279,15 @@ impl Default for PerpMarket {
             padding1: 0,
             high_leverage_margin_ratio_initial: 0,
             high_leverage_margin_ratio_maintenance: 0,
-            padding: [0; 38],
+
+            resolve_ts: 0,
+            resolve_oracle: Pubkey::default(),
         }
     }
 }
 
 impl Size for PerpMarket {
-    const SIZE: usize = 1216;
+    const SIZE: usize = 1232;
 }
 
 impl MarketIndexOffset for PerpMarket {
