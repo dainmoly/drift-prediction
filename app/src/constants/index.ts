@@ -4,7 +4,7 @@ export * from './perpMarkets';
 export * from './numericConstants';
 export * from './spotMarkets';
 
-export const DRIFT_PROGRAM_ID = new PublicKey("9u2HBKPQtouLjmepiaema1LF99Ah7YyViJ8kLe8D236w");
+export const DRIFT_PROGRAM_ID = new PublicKey("E4kHH41PTB6uJtvBqffQk1rhJCxS82fsDxo3eASbfS7j");
 export const DRIFT_ORACLE_RECEIVER_ID = new PublicKey("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha");
 export const PYTH_PROGRAM_ID = new PublicKey("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
 export const SWITCHBOARD_PROGRAM_ID = new PublicKey("SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f");

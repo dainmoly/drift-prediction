@@ -25,7 +25,7 @@ Update min_if_stake variable as 0
  `solana program deploy target/deploy/drift.so -u d`
  - If deploy to mainnet, then build without feature flag, and -u as m.
  - Upload IDL to verify
- `anchor idl init -f target/idl/drift.json 9u2HBKPQtouLjmepiaema1LF99Ah7YyViJ8kLe8D236w --provider.cluster devnet`
+ `anchor idl init -f target/idl/drift.json E4kHH41PTB6uJtvBqffQk1rhJCxS82fsDxo3eASbfS7j --provider.cluster devnet`
 
 
 # Initialize state account
