@@ -4477,7 +4477,7 @@ pub struct InitializePredictionMarket<'info> {
 #[derive(Accounts)]
 pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
     #[account(
-        address = admin_hot_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
@@ -4640,7 +4640,7 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
 #[derive(Accounts)]
 pub struct InitUserFuel<'info> {
     #[account(
-        address = admin_hot_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>, // todo
     pub state: Box<Account<'info, State>>,

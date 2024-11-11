@@ -22,7 +22,8 @@ export enum ExchangeStatus {
 	LIQ_PAUSED = 16,
 	FUNDING_PAUSED = 32,
 	SETTLE_PNL_PAUSED = 64,
-	PAUSED = 127,
+	AMM_IMMEDIATE_FILL_PAUSED = 128,
+	PAUSED = 255,
 }
 
 export class MarketStatus {
@@ -541,6 +542,16 @@ export type SettlePnlRecord = {
 	explanation: SettlePnlExplanation;
 };
 
+export type SwiftOrderRecord = {
+	ts: BN;
+	user: PublicKey;
+	hash: string;
+	matchingOrderParams: OrderParams;
+	swiftOrderMaxSlot: BN;
+	swiftOrderUuid: Uint8Array;
+	userOrderId: number;
+};
+
 export type OrderRecord = {
 	ts: BN;
 	user: PublicKey;
@@ -914,7 +925,7 @@ export type UserStatsAccount = {
 		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
-	isReferrer: boolean;
+	referrerStatus: number;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 
@@ -1068,11 +1079,11 @@ export const DefaultOrderParams: OrderParams = {
 export type SwiftServerMessage = {
 	slot: BN;
 	swiftOrderSignature: Uint8Array;
+	uuid: Uint8Array; // From buffer of standard UUID string
 };
 
 export type SwiftOrderParamsMessage = {
 	swiftOrderParams: OptionalOrderParams;
-	expectedOrderId: number;
 	subAccountId: number;
 	takeProfitOrderParams: SwiftTriggerOrderParams | null;
 	stopLossOrderParams: SwiftTriggerOrderParams | null;
@@ -1081,6 +1092,29 @@ export type SwiftOrderParamsMessage = {
 export type SwiftTriggerOrderParams = {
 	triggerPrice: BN;
 	baseAssetAmount: BN;
+};
+
+export type RFQMakerOrderParams = {
+	uuid: Uint8Array; // From buffer of standard UUID string
+	authority: PublicKey;
+	subAccountId: number;
+	marketIndex: number;
+	marketType: MarketType;
+	baseAssetAmount: BN;
+	price: BN;
+	direction: PositionDirection;
+	maxTs: BN;
+};
+
+export type RFQMakerMessage = {
+	orderParams: RFQMakerOrderParams;
+	signature: Uint8Array;
+};
+
+export type RFQMatch = {
+	baseAssetAmount: BN;
+	makerOrderParams: RFQMakerOrderParams;
+	makerSignature: Uint8Array;
 };
 
 export type MakerInfo = {
@@ -1101,6 +1135,11 @@ export type ReferrerInfo = {
 	referrer: PublicKey;
 	referrerStats: PublicKey;
 };
+
+export enum ReferrerStatus {
+	IsReferrer = 1,
+	IsReferred = 2,
+}
 
 export enum PlaceAndTakeOrderSuccessCondition {
 	PartialFill = 1,

@@ -12,7 +12,7 @@ use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
 use crate::state::oracle::PrelaunchOracleParams;
-use crate::state::order_params::{ModifyOrderParams, OrderParams};
+use crate::state::order_params::{ModifyOrderParams, OrderParams, RFQMatch};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
@@ -57,6 +57,18 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, InitializeUserStats>,
     ) -> Result<()> {
         handle_initialize_user_stats(ctx)
+    }
+
+    pub fn initialize_rfq_user<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeRFQUser<'info>>,
+    ) -> Result<()> {
+        handle_initialize_rfq_user(ctx)
+    }
+
+    pub fn initialize_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+    ) -> Result<()> {
+        handle_initialize_swift_user_orders(ctx)
     }
 
     pub fn initialize_referrer_name(
@@ -161,18 +173,27 @@ pub mod drift {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
     }
 
+    pub fn place_and_make_swift_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+        params: OrderParams,
+        swift_order_uuid: [u8; 8],
+    ) -> Result<()> {
+        handle_place_and_make_swift_perp_order(ctx, params, swift_order_uuid)
+    }
+
     pub fn place_swift_taker_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
         swift_message_bytes: Vec<u8>,
         swift_order_params_message_bytes: Vec<u8>,
-        swift_message_signature: [u8; 64],
     ) -> Result<()> {
-        handle_place_swift_taker_order(
-            ctx,
-            swift_message_bytes,
-            swift_order_params_message_bytes,
-            swift_message_signature,
-        )
+        handle_place_swift_taker_order(ctx, swift_message_bytes, swift_order_params_message_bytes)
+    }
+
+    pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
+        rfq_matches: Vec<RFQMatch>,
+    ) -> Result<()> {
+        handle_place_and_match_rfq_orders(ctx, rfq_matches)
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
@@ -320,6 +341,12 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn delete_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteSwiftUserOrders>,
+    ) -> Result<()> {
+        handle_delete_swift_user_orders(ctx)
+    }
+
     pub fn reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
         handle_reclaim_rent(ctx)
     }
@@ -383,6 +410,12 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
     ) -> Result<()> {
         handle_update_user_fuel_bonus(ctx)
+    }
+
+    pub fn update_user_stats_referrer_status<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserStatsReferrerInfo<'info>>,
+    ) -> Result<()> {
+        handle_update_user_stats_referrer_info(ctx)
     }
 
     pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {

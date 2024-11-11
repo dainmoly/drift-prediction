@@ -15,7 +15,11 @@ import {
 	UserStatus,
 	UserStatsAccount,
 } from './types';
-import { calculateEntryPrice, positionIsAvailable } from './math/position';
+import {
+	calculateEntryPrice,
+	calculateUnsettledFundingPnl,
+	positionIsAvailable,
+} from './math/position';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_RESERVE_PRECISION_EXP,
@@ -50,7 +54,6 @@ import {
 	calculateBaseAssetValue,
 	calculateMarketMarginRatio,
 	calculatePerpLiabilityValue,
-	calculatePositionFundingPNL,
 	calculatePositionPNL,
 	calculateReservePrice,
 	calculateSpotMarketMarginRatio,
@@ -100,6 +103,7 @@ import {
 	calculatePerpFuelBonus,
 	calculateInsuranceFuelBonus,
 } from './math/fuel';
+import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
 
 export class User {
 	driftClient: DriftClient;
@@ -130,6 +134,16 @@ export class User {
 			);
 		} else if (config.accountSubscription?.type === 'custom') {
 			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
+		} else if (config.accountSubscription?.type === 'grpc') {
+			this.accountSubscriber = new grpcUserAccountSubscriber(
+				config.accountSubscription.grpcConfigs,
+				config.driftClient.program,
+				config.userAccountPublicKey,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				}
+			);
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
@@ -484,7 +498,7 @@ export class User {
 		const nShares = position.lpShares;
 
 		// incorp unsettled funding on pre settled position
-		const quoteFundingPnl = calculatePositionFundingPNL(market, position);
+		const quoteFundingPnl = calculateUnsettledFundingPnl(market, position);
 
 		let baseUnit = AMM_RESERVE_PRECISION;
 		if (market.amm.perLpBase == position.perLpBase) {
@@ -884,13 +898,13 @@ export class User {
 	public getUnrealizedFundingPNL(marketIndex?: number): BN {
 		return this.getUserAccount()
 			.perpPositions.filter((pos) =>
-				marketIndex ? pos.marketIndex === marketIndex : true
+				marketIndex !== undefined ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((pnl, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				return pnl.add(calculatePositionFundingPNL(market, perpPosition));
+				return pnl.add(calculateUnsettledFundingPnl(market, perpPosition));
 			}, ZERO);
 	}
 
@@ -3461,6 +3475,10 @@ export class User {
 
 		let feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
+			if (this.isHighLeverageMode()) {
+				return state.perpFeeStructure.feeTiers[0];
+			}
+
 			const userStatsAccount: UserStatsAccount = this.driftClient
 				.getUserStats()
 				.getAccount();

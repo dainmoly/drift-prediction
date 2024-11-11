@@ -587,6 +587,28 @@ pub enum ErrorCode {
     PlaceAndTakeOrderSuccessConditionFailed,
     #[msg("Invalid High Leverage Mode Config")]
     InvalidHighLeverageModeConfig,
+    #[msg("Invalid RFQ User Account")]
+    InvalidRFQUserAccount,
+    #[msg("RFQUserAccount should be mutable")]
+    RFQUserAccountWrongMutability,
+    #[msg("RFQUserAccount has too many active RFQs")]
+    RFQUserAccountFull,
+    #[msg("RFQ order not filled as expected")]
+    RFQOrderNotFilled,
+    #[msg("RFQ orders must be jit makers")]
+    InvalidRFQOrder,
+    #[msg("RFQ matches must be valid")]
+    InvalidRFQMatch,
+    #[msg("Invalid swift user account")]
+    InvalidSwiftUserAccount,
+    #[msg("Swift account wrong mutability")]
+    SwiftUserAccountWrongMutability,
+    #[msg("SwiftUserAccount has too many active orders")]
+    SwiftUserOrdersAccountFull,
+    #[msg("Order with swift uuid does not exist")]
+    SwiftOrderDoesNotExist,
+    #[msg("Swift order id cannot be 0s")]
+    InvalidSwiftOrderId,
 }
 
 #[macro_export]

@@ -12,12 +12,14 @@ pub mod order_params;
 pub mod paused_operations;
 pub mod perp_market;
 pub mod perp_market_map;
+pub mod rfq_user;
 pub mod settle_pnl_mode;
 pub mod spot_fulfillment_params;
 pub mod spot_market;
 pub mod spot_market_map;
 #[allow(clippy::module_inception)]
 pub mod state;
+pub mod swift_user;
 pub mod traits;
 pub mod user;
 pub mod user_map;
