@@ -23,6 +23,8 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
+use crate::get_struct_values;
+use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
@@ -79,8 +81,6 @@ use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
 use crate::{controller, ID};
-use crate::{get_struct_values, PERCENTAGE_PRECISION};
-use crate::{get_then_update_id, PERCENTAGE_PRECISION_I64};
 
 #[cfg(test)]
 mod tests;
@@ -166,6 +166,13 @@ pub fn place_perp_order(
         !matches!(market.status, MarketStatus::Initialized),
         ErrorCode::MarketBeingInitialized,
         "Market is being initialized"
+    )?;
+
+    validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != 0",
+        user.pool_id
     )?;
 
     validate!(
@@ -1233,6 +1240,14 @@ pub fn fill_perp_order(
     let is_filler_maker = makers_and_referrer.0.contains_key(&filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
         let filler = load_mut!(filler)?;
+
+        validate!(
+            filler.pool_id == 0,
+            ErrorCode::InvalidPoolId,
+            "filler pool id ({}) != 0",
+            filler.pool_id
+        )?;
+
         if filler.authority != user.authority {
             (Some(filler), Some(load_mut!(filler_stats)?))
         } else {
@@ -3522,6 +3537,13 @@ pub fn place_spot_order(
     let step_size = spot_market.order_step_size;
 
     validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != 0",
+        user.pool_id
+    )?;
+
+    validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),
         ErrorCode::MarketBeingInitialized,
         "Market is being initialized"
@@ -3802,6 +3824,14 @@ pub fn fill_spot_order(
     let is_filler_maker = makers_and_referrer.0.contains_key(&filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
         let filler = load_mut!(filler)?;
+
+        validate!(
+            filler.pool_id == 0,
+            ErrorCode::InvalidPoolId,
+            "filler pool id ({}) != 0",
+            filler.pool_id
+        )?;
+
         if filler.authority != user.authority {
             (Some(filler), Some(load_mut!(filler_stats)?))
         } else {

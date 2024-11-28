@@ -347,6 +347,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1722214583000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'RANDOM-2024',
+		category: ['Prediction'],
+		symbol: 'RANDOM-2024-PREDICT',
+		baseAssetSymbol: 'RANDOM-2024',
+		marketIndex: 28,
+		oracle: new PublicKey('sDAQaZQJQ4RXAxH3x526mbEXyQZT15ktkL84d7hmk7M'),
+		launchTs: 1729622442000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -961,6 +971,42 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x63a45218d6b13ffd28ca04748615511bf70eff80a3411c97d96b8ed74a6decab',
+	},
+	{
+		fullName: 'GOAT',
+		category: ['Meme'],
+		symbol: 'GOAT-PERP',
+		baseAssetSymbol: 'GOAT',
+		marketIndex: 53,
+		oracle: new PublicKey('5RgXW13Kq1RgCLEsJhhchWt3W4R2XLJnd6KqgZk6dSY7'),
+		launchTs: 1731443152000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0xf7731dc812590214d3eb4343bfb13d1b4cfa9b1d4e020644b5d5d8e07d60c66c',
+	},
+	{
+		fullName: 'FWOG',
+		category: ['Meme'],
+		symbol: 'FWOG-PERP',
+		baseAssetSymbol: 'FWOG',
+		marketIndex: 54,
+		oracle: new PublicKey('5Z7uvkAsHNN6qqkQkwcKcEPYZqiMbFE9E24p7SpvfSrv'),
+		launchTs: 1731443152000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x656cc2a39dd795bdecb59de810d4f4d1e74c25fe4c42d0bf1c65a38d74df48e9',
+	},
+	{
+		fullName: 'PNUT',
+		category: ['Meme'],
+		symbol: 'PNUT-PERP',
+		baseAssetSymbol: 'PNUT',
+		marketIndex: 55,
+		oracle: new PublicKey('5AcetMtdRHxkse2ny44NcRdsysnXu9deW7Yy5Y63qAHE'),
+		launchTs: 1731443152000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x116da895807f81f6b5c5f01b109376e7f6834dc8b51365ab7cdfa66634340e54',
 	},
 ];
 

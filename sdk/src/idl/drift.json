@@ -1,5 +1,5 @@
 {
-  "version": "2.99.0",
+  "version": "2.102.0",
   "name": "drift",
   "instructions": [
     {
@@ -144,7 +144,7 @@
         },
         {
           "name": "user",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -163,7 +163,43 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "resizeSwiftUserOrders",
+      "accounts": [
+        {
+          "name": "swiftUserOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
     },
     {
       "name": "initializeReferrerName",
@@ -1322,6 +1358,31 @@
       ]
     },
     {
+      "name": "updateUserPoolId",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "poolId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateUserDelegate",
       "accounts": [
         {
@@ -1418,6 +1479,42 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "forceDeleteUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": []
@@ -2700,6 +2797,27 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "updateUserGovTokenInsuranceStakeDevnet",
+      "accounts": [
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "govStakeAmount",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "initializeInsuranceFundStake",
@@ -4404,6 +4522,32 @@
         {
           "name": "insuranceFundUnstakingPeriod",
           "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketPoolId",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "poolId",
+          "type": "u8"
         }
       ]
     },
@@ -6946,7 +7090,7 @@
             "type": "u8"
           },
           {
-            "name": "padding1",
+            "name": "poolId",
             "type": "u8"
           },
           {
@@ -7483,11 +7627,15 @@
             "type": "u8"
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                41
+                40
               ]
             }
           }
@@ -7615,6 +7763,9 @@
     },
     {
       "name": "SwiftUserOrders",
+      "docs": [
+        "* This struct is a duplicate of SwiftUserOrdersZeroCopy\n * It is used to give anchor an struct to generate the idl for clients\n * The struct SwiftUserOrdersZeroCopy is used to load the data in efficiently"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -7623,14 +7774,15 @@
             "type": "publicKey"
           },
           {
+            "name": "padding",
+            "type": "u32"
+          },
+          {
             "name": "swiftOrderData",
             "type": {
-              "array": [
-                {
-                  "defined": "SwiftOrderId"
-                },
-                32
-              ]
+              "vec": {
+                "defined": "SwiftOrderId"
+              }
             }
           }
         ]
@@ -7865,11 +8017,15 @@
             }
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },
@@ -9836,6 +9992,30 @@
           {
             "name": "orderId",
             "type": "u32"
+          },
+          {
+            "name": "padding",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftUserOrdersFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "padding",
+            "type": "u32"
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -10741,7 +10921,8 @@
           {
             "name": "PlaceAndTake",
             "fields": [
-              "bool"
+              "bool",
+              "u8"
             ]
           },
           {
@@ -12423,6 +12604,38 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "DeleteUserRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "subAccountId",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "keeper",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -13935,6 +14148,11 @@
       "code": 6301,
       "name": "InvalidSwiftOrderId",
       "msg": "Swift order id cannot be 0s"
+    },
+    {
+      "code": 6302,
+      "name": "InvalidPoolId",
+      "msg": "Invalid pool id"
     }
   ],
   "metadata": {

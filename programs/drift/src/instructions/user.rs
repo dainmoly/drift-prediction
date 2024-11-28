@@ -14,7 +14,7 @@ use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
 use crate::controller::spot_position::{
-    charge_withdraw_fee, update_spot_balances_and_cumulative_deposits,
+    update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
@@ -28,6 +28,7 @@ use crate::instructions::optional_accounts::{
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
+use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
     meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
@@ -55,8 +56,8 @@ use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::RFQMatch;
 use crate::state::order_params::{
-    ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
-    PostOnlyParam,
+    parse_optional_params, ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition,
+    PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
@@ -70,6 +71,8 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
 use crate::state::state::State;
+use crate::state::swift_user::SwiftOrderId;
+use crate::state::swift_user::SwiftUserOrdersLoader;
 use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
@@ -286,18 +289,31 @@ pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
 
 pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+    num_orders: u16,
 ) -> Result<()> {
     #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
     {
         panic!("Swift orders are disabled on mainnet-beta");
     }
 
-    let mut swift_user_orders = ctx
-        .accounts
-        .swift_user_orders
-        .load_init()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    let swift_user_orders = &mut ctx.accounts.swift_user_orders;
     swift_user_orders.user_pubkey = ctx.accounts.user.key();
+    swift_user_orders
+        .swift_order_data
+        .resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders.validate()?;
+    Ok(())
+}
+
+pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let swift_user_orders = &mut ctx.accounts.swift_user_orders;
+    swift_user_orders
+        .swift_order_data
+        .resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders.validate()?;
     Ok(())
 }
 
@@ -341,6 +357,14 @@ pub fn handle_deposit<'c: 'info, 'info>(
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
+
+    validate!(
+        user.pool_id == spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != market pool id ({})",
+        user.pool_id,
+        spot_market.pool_id
+    )?;
 
     validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),
@@ -553,12 +577,6 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-        if user.qualifies_for_withdraw_fee(&user_stats, slot) {
-            let fee =
-                charge_withdraw_fee(spot_market, oracle_price_data.price, user, &mut user_stats)?;
-            amount = amount.safe_sub(fee.cast()?)?;
-        }
-
         user.increment_total_withdraws(
             amount,
             oracle_price_data.price,
@@ -721,6 +739,14 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
+        validate!(
+            from_user.pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) != market pool id ({})",
+            from_user.pool_id,
+            spot_market.pool_id
+        )?;
+
         from_user.increment_total_withdraws(
             amount,
             oracle_price,
@@ -787,6 +813,14 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+        validate!(
+            to_user.pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) != market pool id ({})",
+            to_user.pool_id,
+            spot_market.pool_id
+        )?;
 
         to_user.increment_total_deposits(
             amount,
@@ -1284,7 +1318,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
-    success_condition: Option<u32>, // u32 for backwards compatibility
+    optional_params: Option<u32>, // u32 for backwards compatibility
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1324,6 +1358,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let mut user = load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
 
+    let (success_condition, auction_duration_percentage) = parse_optional_params(optional_params);
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
         &mut user,
@@ -1355,7 +1391,10 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &makers_and_referrer_stats,
         None,
         &Clock::get()?,
-        FillMode::PlaceAndTake(is_immediate_or_cancel || success_condition.is_some()),
+        FillMode::PlaceAndTake(
+            is_immediate_or_cancel || optional_params.is_some(),
+            auction_duration_percentage,
+        ),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1374,20 +1413,18 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         )?;
     }
 
-    if let Some(success_condition) = success_condition {
-        if success_condition == PlaceAndTakeOrderSuccessCondition::PartialFill as u32 {
-            validate!(
-                base_asset_amount_filled > 0,
-                ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
-                "no partial fill"
-            )?;
-        } else if success_condition == PlaceAndTakeOrderSuccessCondition::FullFill as u32 {
-            validate!(
-                base_asset_amount_filled > 0 && !order_exists,
-                ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
-                "no full fill"
-            )?;
-        }
+    if success_condition == PlaceAndTakeOrderSuccessCondition::PartialFill as u8 {
+        validate!(
+            base_asset_amount_filled > 0,
+            ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
+            "no partial fill"
+        )?;
+    } else if success_condition == PlaceAndTakeOrderSuccessCondition::FullFill as u8 {
+        validate!(
+            base_asset_amount_filled > 0 && !order_exists,
+            ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
+            "no full fill"
+        )?;
     }
 
     Ok(())
@@ -1557,9 +1594,8 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let taker_swift_account = load!(ctx.accounts.taker_swift_user_orders)?;
+    let taker_swift_account = ctx.accounts.taker_swift_user_orders.load()?;
     let taker_order_id = taker_swift_account
-        .swift_order_data
         .iter()
         .find(|swift_order_id| swift_order_id.uuid == swift_order_uuid)
         .ok_or(ErrorCode::SwiftOrderDoesNotExist)?
@@ -2180,6 +2216,39 @@ pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_update_user_pool_id<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
+    _sub_account_id: u16,
+    pool_id: u8,
+) -> Result<()> {
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("pools disabled on mainnet-beta");
+    }
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let mut user = load_mut!(ctx.accounts.user)?;
+    user.pool_id = pool_id;
+
+    // will throw if user has deposits/positions in other pools
+    meets_initial_margin_requirement(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    Ok(())
+}
+
 pub fn handle_update_user_delegate(
     ctx: Context<UpdateUser>,
     _sub_account_id: u16,
@@ -2446,24 +2515,45 @@ pub struct InitializeRFQUser<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(num_orders: u16)]
 pub struct InitializeSwiftUserOrders<'info> {
     #[account(
         init,
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
-        space = SwiftUserOrders::SIZE,
+        space = SwiftUserOrders::space(num_orders as usize),
         bump,
         payer = payer
     )]
-    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     pub authority: Signer<'info>,
     #[account(
-        mut,
         constraint = can_sign_for_user(&user, &authority)?
     )]
     pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct ResizeSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+        realloc = SwiftUserOrders::space(num_orders as usize),
+        realloc::payer = authority,
+        realloc::zero = false,
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
     pub system_program: Program<'info, System>,
 }
 
@@ -2695,7 +2785,8 @@ pub struct PlaceAndMakeSwift<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
         bump,
     )]
-    pub taker_swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
+    pub taker_swift_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
 }
 
@@ -2781,7 +2872,7 @@ pub struct DeleteSwiftUserOrders<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,

@@ -447,8 +447,22 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey('cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij'),
 		precision: new BN(10).pow(EIGHT),
 		precisionExp: EIGHT,
+		openbookMarket: new PublicKey(
+			'2HXgKaXKsMUEzQaSBZiXSd54eMHaS3roiefyGWtkW97W'
+		),
 		pythFeedId:
 			'0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+	},
+	{
+		symbol: 'USDS',
+		marketIndex: 28,
+		oracle: new PublicKey('7pT9mxKXyvfaZKeKy1oe2oV2K1RFtF7tPEJHUY3h2vVV'),
+		oracleSource: OracleSource.PYTH_STABLE_COIN_PULL,
+		mint: new PublicKey('USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x77f0971af11cc8bac224917275c1bf55f2319ed5c654a1ca955c82fa2d297ea1',
 	},
 ];
 

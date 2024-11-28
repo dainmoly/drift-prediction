@@ -611,6 +611,14 @@ export type SpotMarketVaultDepositRecord = {
 	amount: BN;
 };
 
+export type DeleteUserRecord = {
+	ts: BN;
+	userAuthority: PublicKey;
+	user: PublicKey;
+	subAccountId: number;
+	keeper: PublicKey | null;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -786,6 +794,8 @@ export type SpotMarketAccount = {
 	fuelBoostInsurance: number;
 
 	tokenProgram: number;
+
+	poolId: number;
 };
 
 export type PoolBalance = {
