@@ -351,6 +351,14 @@ pub mod drift {
         handle_update_user_advanced_lp(ctx, _sub_account_id, advanced_lp)
     }
 
+    pub fn update_user_protected_maker_orders(
+        ctx: Context<UpdateUserProtectedMakerMode>,
+        _sub_account_id: u16,
+        protected_maker_orders: bool,
+    ) -> Result<()> {
+        handle_update_user_protected_maker_orders(ctx, _sub_account_id, protected_maker_orders)
+    }
+
     pub fn delete_user<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DeleteUser>,
     ) -> Result<()> {
@@ -420,6 +428,12 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, UpdateUserIdle<'info>>,
     ) -> Result<()> {
         handle_update_user_idle(ctx)
+    }
+
+    pub fn log_user_balances<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LogUserBalances<'info>>,
+    ) -> Result<()> {
+        handle_log_user_balances(ctx)
     }
 
     pub fn disable_user_high_leverage_mode<'c: 'info, 'info>(
@@ -1560,6 +1574,21 @@ pub mod drift {
         reduce_only: bool,
     ) -> Result<()> {
         handle_update_high_leverage_mode_config(ctx, max_users, reduce_only)
+    }
+
+    pub fn initialize_protected_maker_mode_config(
+        ctx: Context<InitializeProtectedMakerModeConfig>,
+        max_users: u32,
+    ) -> Result<()> {
+        handle_initialize_protected_maker_mode_config(ctx, max_users)
+    }
+
+    pub fn update_protected_maker_mode_config(
+        ctx: Context<UpdateProtectedMakerModeConfig>,
+        max_users: u32,
+        reduce_only: bool,
+    ) -> Result<()> {
+        handle_update_protected_maker_mode_config(ctx, max_users, reduce_only)
     }
 }
 

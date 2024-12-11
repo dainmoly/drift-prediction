@@ -1,8 +1,10 @@
 use std::cell::RefMut;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::get_associated_token_address;
+use anchor_spl::associated_token::{
+    get_associated_token_address, get_associated_token_address_with_program_id,
+};
 use anchor_spl::token::spl_token;
 use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
@@ -24,6 +26,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
+use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math_error;
@@ -60,11 +63,11 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
+use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_msg};
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
-    controller, digest_struct, load, math, print_error, safe_decrement, OracleSource,
-    GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
+    controller, digest_struct, digest_struct_hex, load, math, print_error, safe_decrement,
+    OracleSource, GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
@@ -446,6 +449,78 @@ pub fn handle_update_user_idle<'c: 'info, 'info>(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
+pub fn handle_log_user_balances<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LogUserBalances<'info>>,
+) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+    let clock = Clock::get()?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let (equity, _) =
+        calculate_user_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    msg!(
+        "Authority key {} subaccount id {} user key {}",
+        user.authority,
+        user.sub_account_id,
+        user_key
+    );
+
+    msg!("Equity {}", equity);
+
+    for spot_position in user.spot_positions.iter() {
+        if spot_position.scaled_balance == 0 {
+            continue;
+        }
+
+        let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+        let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
+        msg!(
+            "Spot position {} balance {}",
+            spot_position.market_index,
+            token_amount
+        );
+    }
+
+    for perp_position in user.perp_positions.iter() {
+        if perp_position.is_available() {
+            continue;
+        }
+
+        let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
+        let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
+        let (_, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(&perp_position, oracle_price)?;
+
+        if unrealized_pnl == 0 {
+            continue;
+        }
+
+        msg!(
+            "Perp position {} unrealized pnl {}",
+            perp_position.market_index,
+            unrealized_pnl
+        );
+    }
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
 pub fn handle_update_user_fuel_bonus<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
 ) -> Result<()> {
@@ -597,18 +672,19 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Verify data from first verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
-    verify_ed25519_digest(
+    verify_ed25519_msg(
         &ix,
         &swift_server::id().to_bytes(),
         &digest_struct!(swift_message),
     )?;
 
     // Verify data from second verify ix
+    let digest_hex = digest_struct_hex!(taker_order_params_message);
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-    verify_ed25519_digest(
+    verify_ed25519_msg(
         &ix,
         &taker.authority.to_bytes(),
-        &digest_struct!(&taker_order_params_message),
+        arrayref::array_ref!(digest_hex, 0, 64),
     )?;
 
     // Verify that sig from swift server corresponds to order message
@@ -1399,7 +1475,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             "Market is in settlement mode",
         )?;
 
-        let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
+        let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
         controller::orders::validate_market_within_price_band(perp_market, state, oracle_price)?;
 
         controller::insurance::resolve_perp_pnl_deficit(
@@ -1682,7 +1758,7 @@ pub fn handle_update_funding_rate(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    let oracle_price_data = &oracle_map.get_price_data(&perp_market.oracle_id())?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
 
     validate!(
@@ -1777,7 +1853,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         min_if_stake
     )?;
 
-    let oracle_price_data = oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -1939,7 +2015,7 @@ pub fn handle_update_spot_market_cumulative_interest(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
     if !state.funding_paused()? {
         controller::spot_balance::update_spot_market_cumulative_interest(
@@ -2213,7 +2289,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         }
 
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_position.market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
@@ -2244,7 +2320,11 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
-        let keeper_vault = get_associated_token_address(&keeper_key, spot_market_mint);
+        let keeper_vault = get_associated_token_address_with_program_id(
+            &keeper_key,
+            spot_market_mint,
+            &token_program_pubkey,
+        );
         let keeper_vault_account_info = ctx
             .remaining_accounts
             .iter()
@@ -2403,6 +2483,14 @@ pub struct UpdateUserIdle<'info> {
         constraint = can_sign_for_user(&filler, &authority)?
     )]
     pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct LogUserBalances<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
 }
